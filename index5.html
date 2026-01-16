@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gift Tracker</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont; padding: 16px; background: #f5f5f7; }
+  h1 { margin-bottom: 12px; }
+  input, textarea, button, select { font-size: 16px; padding: 10px; border-radius: 10px; margin-bottom: 8px; width: 100%; box-sizing: border-box; }
+  button { background: #007aff; color: white; border: none; }
+  .card { background: white; padding: 14px; margin-bottom: 10px; border-radius: 12px; cursor: pointer; }
+  .back { background: #ddd; color: black; margin-bottom: 10px; }
+  .link { color: #007aff; text-decoration: none; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- PEOPLE SCREEN -->
+<div id="peopleScreen">
+  <h1>The Giver</h1>
+  <input id="personInput" placeholder="Add a person..." />
+  <button onclick="addPerson()">Add Person</button>
+  <div id="peopleList"></div>
+</div>
+
+<!-- GIFTS SCREEN -->
+<div id="giftsScreen" style="display:none">
+  <button class="back" onclick="goBack()">← Back</button>
+  <h1 id="personName"></h1>
+
+  <input id="giftName" placeholder="Gift idea" />
+  
+  <!-- Occasion Dropdown -->
+  <select id="occasion">
+    <option value="">Select Occasion</option>
+    <option>Birthday</option>
+    <option>Anniversary</option>
+    <option>Newborn / Baby Shower</option>
+    <option>Housewarming</option>
+    <option>Wedding</option>
+    <option>Graduation</option>
+    <option>Engagement</option>
+    <option>Promotion / Work Achievement</option>
+    <option>Christmas / Holidays</option>
+    <option>Valentine’s Day</option>
+    <option>Mother’s Day / Father’s Day</option>
+  </select>
+
+  <input id="link" placeholder="Link to buy (optional)" />
+  <textarea id="why" placeholder="Why this gift?"></textarea>
+  <button onclick="addGift()">Add Gift</button>
+
+  <!-- FILTERS -->
+  <select id="filterBought" onchange="renderGifts()">
+    <option value="all">All Gifts</option>
+    <option value="bought">Bought</option>
+    <option value="ideas">Ideas</option>
+  </select>
+
+  <select id="filterOccasion" onchange="renderGifts()">
+    <option value="all">All Occasions</option>
+    <option>Birthday</option>
+    <option>Anniversary</option>
+    <option>Newborn / Baby Shower</option>
+    <option>Housewarming</option>
+    <option>Wedding</option>
+    <option>Graduation</option>
+    <option>Engagement</option>
+    <option>Promotion / Work Achievement</option>
+    <option>Christmas / Holidays</option>
+    <option>Valentine’s Day</option>
+    <option>Mother’s Day / Father’s Day</option>
+  </select>
+
+  <div id="giftsList"></div>
+</div>
+
+<script>
+let people = JSON.parse(localStorage.getItem("people")) || [];
+let currentPersonIndex = null;
+let editIndex = null;
+
+// Save to localStorage
+function save() {
+  localStorage.setItem("people", JSON.stringify(people));
+}
+
+// PEOPLE SCREEN
+function showPeople() {
+  document.getElementById("peopleScreen").style.display = "block";
+  document.getElementById("giftsScreen").style.display = "none";
+
+  const list = document.getElementById("peopleList");
+  list.innerHTML = "";
+
+  people.forEach((person, index) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.textContent = person.name;
+    div.onclick = () => openPerson(index);
+    list.appendChild(div);
+  });
+}
+
+function addPerson() {
+  const input = document.getElementById("personInput");
+  if (!input.value.trim()) return;
+
+  people.push({
+    name: input.value.trim(),
+    gifts: []
+  });
+
+  input.value = "";
+  save();
+  showPeople();
+}
+
+// GIFTS SCREEN
+function openPerson(index) {
+  currentPersonIndex = index;
+  document.getElementById("peopleScreen").style.display = "none";
+  document.getElementById("giftsScreen").style.display = "block";
+  document.getElementById("personName").textContent = people[index].name;
+  document.getElementById("filterBought").value = "all";
+  document.getElementById("filterOccasion").value = "all";
+  renderGifts();
+}
+
+function goBack() {
+  currentPersonIndex = null;
+  editIndex = null;
+  document.getElementById("giftName").value = "";
+  document.getElementById("occasion").value = "";
+  document.getElementById("link").value = "";
+  document.getElementById("why").value = "";
+  showPeople();
+}
+
+// Add or Save Gift
+function addGift() {
+  const giftName = document.getElementById("giftName").value;
+  const occasion = document.getElementById("occasion").value;
+  const link = document.getElementById("link").value;
+  const why = document.getElementById("why").value;
+
+  if (!giftName.trim()) return;
+
+  const giftData = { name: giftName, occasion, link, why, bought: false };
+
+  if (editIndex !== null) {
+    people[currentPersonIndex].gifts[editIndex] = giftData;
+    editIndex = null;
+  } else {
+    people[currentPersonIndex].gifts.push(giftData);
+  }
+
+  document.getElementById("giftName").value = "";
+  document.getElementById("occasion").value = "";
+  document.getElementById("link").value = "";
+  document.getElementById("why").value = "";
+
+  save();
+  renderGifts();
+}
+
+// Edit gift
+function editGift(index) {
+  const gift = people[currentPersonIndex].gifts[index];
+  document.getElementById("giftName").value = gift.name;
+  document.getElementById("occasion").value = gift.occasion;
+  document.getElementById("link").value = gift.link;
+  document.getElementById("why").value = gift.why;
+  editIndex = index;
+}
+
+// Delete gift
+function deleteGift(index) {
+  if (!confirm("Are you sure you want to delete this gift?")) return;
+  people[currentPersonIndex].gifts.splice(index, 1);
+  save();
+  renderGifts();
+}
+
+// Render gifts list with dual filters
+function renderGifts() {
+  const list = document.getElementById("giftsList");
+  list.innerHTML = "";
+
+  const filterBought = document.getElementById("filterBought").value;
+  const filterOccasion = document.getElementById("filterOccasion").value;
+
+  people[currentPersonIndex].gifts.forEach((gift, index) => {
+    // Filter by bought
+    if (filterBought === "bought" && !gift.bought) return;
+    if (filterBought === "ideas" && gift.bought) return;
+
+    // Filter by occasion
+    if (filterOccasion !== "all" && gift.occasion !== filterOccasion) return;
+
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <strong>${gift.name}</strong><br>
+      <em>${gift.occasion}</em><br>
+      ${gift.why ? `<p>${gift.why}</p>` : ""}
+      ${gift.link ? `<a class="link" href="${gift.link}" target="_blank">Buy link</a><br>` : ""}
+      <label>
+        <input type="checkbox" ${gift.bought ? "checked" : ""} onchange="toggleBought(${index})">
+        Bought
+      </label><br>
+      <button onclick="editGift(${index})">Edit</button>
+      <button onclick="deleteGift(${index})">Delete</button>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+// Toggle bought
+function toggleBought(index) {
+  const gift = people[currentPersonIndex].gifts[index];
+  gift.bought = !gift.bought;
+  save();
+  renderGifts();
+}
+
+showPeople();
+</script>
+
+</body>
+</html>
